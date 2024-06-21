@@ -6,6 +6,7 @@ import contextlib
 from typing import Callable, List, Optional
 
 import joblib
+import numpy as np
 import torch
 from joblib import Parallel, delayed
 from torch import Tensor
@@ -50,10 +51,14 @@ def simulate_in_batches(
     elif sim_batch_size is not None and sim_batch_size < num_sims:
         # Dev note: pyright complains of torch.split lacking a type stub
         # as of PyTorch 1.4.0, see https://github.com/microsoft/pyright/issues/291
-        batches = torch.split(theta, sim_batch_size, dim=0)
+        num_batches = num_sims // sim_batch_size
+        if num_batches % sim_batch_size:
+            num_batches += 1
+
+        batches = np.split(theta, num_batches, axis=0)
 
         if num_workers != 1:
-            batch_seeds = torch.randint(high=1_000_000, size=(len(batches),))
+            batch_seeds = np.random.randint(low=0, high=1_000_000, size=(len(batches),))
 
             # define seeded simulator.
             def simulator_seeded(theta: Tensor, seed) -> Tensor:
